@@ -76,10 +76,10 @@ def ggml_nbytes(shape, ftype):
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Convert a LLaMA model checkpoint to a ggml compatible file')
-    parser.add_argument('dir_model',  help='directory containing the model checkpoint')
-    parser.add_argument('output_dir',  help='output directory')
-    parser.add_argument('ftype',      help='file type (0: float32, 1: float16)', type=int, choices=[0, 1], default=1)
-    parser.add_argument('vocab_only', help='only write vocab to file', type=int, default=0, nargs='?')
+    parser.add_argument('--dir_model',  help='directory containing the model checkpoint')
+    parser.add_argument('--output_dir',  help='output directory')
+    parser.add_argument('--ftype',      help='file type (0: float32, 1: float16)', type=int, choices=[0, 1], default=1)
+    parser.add_argument('--vocab_only', help='only write vocab to file', type=int, default=0, nargs='?')
     return parser.parse_args()
 
 def get_n_parts(dim):
