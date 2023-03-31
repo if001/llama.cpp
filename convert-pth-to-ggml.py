@@ -77,6 +77,7 @@ def ggml_nbytes(shape, ftype):
 def parse_args():
     parser = argparse.ArgumentParser(description='Convert a LLaMA model checkpoint to a ggml compatible file')
     parser.add_argument('dir_model',  help='directory containing the model checkpoint')
+    parser.add_argument('output_dir',  help='output directory')
     parser.add_argument('ftype',      help='file type (0: float32, 1: float16)', type=int, choices=[0, 1], default=1)
     parser.add_argument('vocab_only', help='only write vocab to file', type=int, default=0, nargs='?')
     return parser.parse_args()
@@ -234,6 +235,7 @@ def process_and_write_variables(fout, model, ftype, part_id, n_parts):
 def main():
     args = parse_args()
     dir_model = args.dir_model
+    output_dir = args.output_dir
     ftype = args.ftype
     ftype_str = ["f32", "f16"]
     hparams, tokenizer = load_hparams_and_tokenizer(dir_model)
@@ -252,7 +254,7 @@ def main():
         return
 
     n_parts = get_n_parts(hparams["dim"])
-    fname_out = f"{dir_model}/ggml-model-{ftype_str[ftype]}.bin"
+    fname_out = f"{output_dir}/ggml-model-{ftype_str[ftype]}.bin"
 
     # we output a single file for ggml
     with open(fname_out, "wb") as fout:
