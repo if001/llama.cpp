@@ -55,6 +55,7 @@ extern "C" {
         bool f16_kv;     // use fp16 for KV cache
         bool logits_all; // the llama_eval() call computes all logits, not just the last one
         bool vocab_only; // only load the vocabulary, no weights
+        bool use_mmap;   // use mmap if possible
         bool use_mlock;  // force system to keep model in RAM
         bool embedding;  // embedding mode only
 
@@ -64,7 +65,24 @@ extern "C" {
         void * progress_callback_user_data;
     };
 
+    // model file types
+    enum llama_ftype {
+        LLAMA_FTYPE_ALL_F32     = 0,
+        LLAMA_FTYPE_MOSTLY_F16  = 1,  // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_Q4_0 = 2,  // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_Q4_1 = 3,  // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_Q4_1_SOME_F16 = 4, // tok_embeddings.weight and output.weight are F16
+        LLAMA_FTYPE_MOSTLY_Q4_2 = 5,  // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_Q4_3 = 6,  // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_Q8_0 = 7,  // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_Q5_0 = 8,  // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_Q5_1 = 9,  // except 1d tensors
+    };
+
     LLAMA_API struct llama_context_params llama_context_default_params();
+
+    LLAMA_API bool llama_mmap_supported();
+    LLAMA_API bool llama_mlock_supported();
 
     // Various functions for loading a ggml llama model.
     // Allocate (almost) all memory needed for the model.
@@ -78,27 +96,42 @@ extern "C" {
 
     // TODO: not great API - very likely to change
     // Returns 0 on success
+    // nthread - how many threads to use. If <=0, will use std::thread::hardware_concurrency(), else the number given
     LLAMA_API int llama_model_quantize(
             const char * fname_inp,
             const char * fname_out,
-                   int   itype);
+      enum llama_ftype   ftype,
+            int          nthread);
 
-    // Returns the KV cache that will contain the context for the
-    // ongoing prediction with the model.
-    LLAMA_API const uint8_t * llama_get_kv_cache(struct llama_context * ctx);
-
-    // Returns the size of the KV cache
-    LLAMA_API size_t llama_get_kv_cache_size(struct llama_context * ctx);
+    // Apply a LoRA adapter to a loaded model
+    // path_base_model is the path to a higher quality model to use as a base for
+    // the layers modified by the adapter. Can be NULL to use the current loaded model.
+    // The model needs to be reloaded before applying a new adapter, otherwise the adapter
+    // will be applied on top of the previous one
+    // Returns 0 on success
+    LLAMA_API int llama_apply_lora_from_file(
+            struct llama_context * ctx,
+                      const char * path_lora,
+                      const char * path_base_model,
+                             int   n_threads);
 
     // Returns the number of tokens in the KV cache
     LLAMA_API int llama_get_kv_cache_token_count(struct llama_context * ctx);
 
-    // Sets the KV cache containing the current context for the model
-    LLAMA_API void llama_set_kv_cache(
-            struct llama_context * ctx,
-                   const uint8_t * kv_cache,
-                          size_t   n_size,
-                             int   n_token_count);
+    // Sets the current rng seed.
+    LLAMA_API void llama_set_rng_seed(struct llama_context * ctx, int seed);
+
+    // Returns the size in bytes of the state (rng, logits, embedding and kv_cache)
+    LLAMA_API size_t llama_get_state_size(struct llama_context * ctx);
+
+    // Copies the state to the specified destination address.
+    // Destination needs to have allocated enough memory.
+    // Returns the number of bytes copied
+    LLAMA_API size_t llama_copy_state_data(struct llama_context * ctx, uint8_t * dest);
+
+    // Set the state reading from the specified address
+    // Returns the number of bytes read
+    LLAMA_API size_t llama_set_state_data(struct llama_context * ctx, const uint8_t * src);
 
     // Run the llama inference to obtain the logits and probabilities for the next token.
     // tokens + n_tokens is the provided batch of new tokens to process
@@ -166,4 +199,15 @@ extern "C" {
 }
 #endif
 
+// Internal API to be implemented by llama.cpp and used by tests/benchmarks only
+#ifdef LLAMA_API_INTERNAL
+
+#include <vector>
+#include <string>
+struct ggml_tensor;
+
+std::vector<std::pair<std::string, struct ggml_tensor *>>& llama_internal_get_tensor_map(struct llama_context * ctx);
+
 #endif
+
+#endif // LLAMA_H
