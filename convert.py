@@ -42,7 +42,7 @@ DT_F16 = UnquantizedDataType('F16')
 DT_F32 = UnquantizedDataType('F32')
 DT_I32 = UnquantizedDataType('I32')
 DT_BF16 = UnquantizedDataType('BF16')
-
+DT_I8 = UnquantizedDataType('I8')
 
 @dataclass(frozen=True)
 class QuantizedDataType:
@@ -71,6 +71,7 @@ DATA_TYPE_TO_NUMPY: Dict[DataType, 'np.dtype[Any]'] = {
     DT_F16: np.dtype(np.float16),
     DT_F32: np.dtype(np.float32),
     DT_I32: np.dtype(np.int32),
+    DT_I8: np.dtype(np.int8)
 }
 
 NUMPY_TYPE_TO_DATA_TYPE: Dict['np.dtype[Any]', DataType] = \
@@ -717,6 +718,7 @@ class LazyUnpickler(pickle.Unpickler):
         ('torch', 'FloatStorage'): LazyStorageKind(DT_F32),
         ('torch', 'IntStorage'): LazyStorageKind(DT_I32),
         ('torch', 'Tensor'): LazyTensor,
+        ('torch', 'ByteStorage'): LazyStorageKind(DT_I8)
     }
 
     def find_class(self, module: str, name: str) -> Any:
@@ -742,6 +744,7 @@ SAFETENSORS_DATA_TYPES: Dict[str, DataType] = {
     'F16': DT_F16,
     'F32': DT_F32,
     'I32': DT_I32,
+    'I8': DT_I8
 }
 
 
